@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Clock, Eye, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 
 interface P2HForm {
@@ -20,6 +20,15 @@ interface P2HForm {
   status: string;
   has_issues: boolean;
   created_at: string;
+  updated_at: string;
+  pengawas_name: string;
+}
+
+interface DashboardStats {
+  pending: number;
+  approved: number;
+  rejected: number;
+  total: number;
 }
 
 interface PengawasUser {
@@ -29,11 +38,18 @@ interface PengawasUser {
   role: string;
 }
 
+interface DashboardData {
+  forms: P2HForm[];
+  stats: DashboardStats;
+}
+
 export default function PengawasDashboardPage() {
   const router = useRouter();
   const [p2hForms, setP2hForms] = useState<P2HForm[]>([]);
-  const [loading, setLoading] = useState(false); // Changed to false since we'll use mock data for now
+  const [stats, setStats] = useState<DashboardStats>({ pending: 0, approved: 0, rejected: 0, total: 0 });
+  const [loading, setLoading] = useState(true);
   const [pengawasData, setPengawasData] = useState<PengawasUser | null>(null);
+  const [processingFormId, setProcessingFormId] = useState<number | null>(null);
 
   useEffect(() => {
     // Check session dan ambil data pengawas
@@ -53,85 +69,106 @@ export default function PengawasDashboardPage() {
       }
 
       setPengawasData(session.user);
-
-      // For now, load mock data instead of API call
-      loadMockData(session.user.id);
+      loadDashboardData(session.user.id);
     } catch (error) {
       console.error('Error parsing session:', error);
       router.push('/pengawas/login');
     }
   }, [router]);
 
-  const loadMockData = (pengawasId: string) => {
-    // Mock data untuk testing - nanti diganti dengan API call
-    const mockForms: P2HForm[] = [
-      {
-        id: 1,
-        driver_name: 'Budi Santoso',
-        driver_nik: '3201234567890123',
-        vehicle_number: 'B 1234 CD',
-        vehicle_type: 'Truck',
-        inspection_date: '2024-01-15',
-        shift: 'pagi',
-        hm_km_awal: 15000,
-        status: 'pending',
-        has_issues: true,
-        created_at: '2024-01-15T08:30:00Z',
-      },
-      {
-        id: 2,
-        driver_name: 'Andi Wijaya',
-        driver_nik: '3201234567890124',
-        vehicle_number: 'B 5678 EF',
-        vehicle_type: 'Bus',
-        inspection_date: '2024-01-15',
-        shift: 'siang',
-        hm_km_awal: 22000,
-        status: 'pending',
-        has_issues: false,
-        created_at: '2024-01-15T10:15:00Z',
-      },
-      {
-        id: 3,
-        driver_name: 'Sari Dewi',
-        driver_nik: '3201234567890125',
-        vehicle_number: 'B 9012 GH',
-        vehicle_type: 'Van',
-        inspection_date: '2024-01-14',
-        shift: 'pagi',
-        hm_km_awal: 8500,
-        status: 'approved',
-        has_issues: false,
-        created_at: '2024-01-14T07:45:00Z',
-      },
-      {
-        id: 4,
-        driver_name: 'Joko Susilo',
-        driver_nik: '3201234567890126',
-        vehicle_number: 'B 3456 IJ',
-        vehicle_type: 'Truck',
-        inspection_date: '2024-01-14',
-        shift: 'siang',
-        hm_km_awal: 18200,
-        status: 'rejected',
-        has_issues: true,
-        created_at: '2024-01-14T14:20:00Z',
-      },
-    ];
+  const loadDashboardData = async (pengawasId: string) => {
+    try {
+      setLoading(true);
+      console.log('Loading dashboard for pengawas:', pengawasId);
 
-    setP2hForms(mockForms);
-    setLoading(false);
+      const response = await fetch(`/api/pengawas/dashboard?pengawas_id=${pengawasId}`);
+      console.log('API Response status:', response.status);
+
+      const result = await response.json();
+      console.log('API Response data:', result);
+
+      if (result.success) {
+        setP2hForms(result.data.forms);
+        setStats(result.data.stats);
+        console.log('Dashboard data loaded successfully:', result.data);
+      } else {
+        console.error('Failed to load dashboard data:', result);
+        alert(`Error loading dashboard: ${result.error || 'Unknown error'}`);
+        // Fallback to empty data
+        setP2hForms([]);
+        setStats({ pending: 0, approved: 0, rejected: 0, total: 0 });
+      }
+    } catch (error) {
+      console.error('Network error loading dashboard data:', error);
+      alert(`Network error: ${error instanceof Error ? error.message : 'Failed to fetch'}`);
+      // Fallback to empty data
+      setP2hForms([]);
+      setStats({ pending: 0, approved: 0, rejected: 0, total: 0 });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateFormStatus = async (formId: number, status: string) => {
-    try {
-      // For now, just update local state - nanti diganti dengan API call
-      setP2hForms((prevForms) => prevForms.map((form) => (form.id === formId ? { ...form, status } : form)));
+    if (!pengawasData) return;
 
-      alert(`Form berhasil ${status === 'approved' ? 'disetujui' : 'ditolak'}`);
+    const confirmMessage = status === 'approved' ? 'Apakah Anda yakin ingin menyetujui form P2H ini?' : 'Apakah Anda yakin ingin menolak form P2H ini?';
+
+    if (!confirm(confirmMessage)) return;
+
+    let rejectionReason = null;
+    if (status === 'rejected') {
+      rejectionReason = prompt('Masukkan alasan penolakan (opsional):');
+    }
+
+    try {
+      setProcessingFormId(formId);
+
+      const response = await fetch(`/api/pengawas/forms/${formId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: status,
+          pengawas_id: pengawasData.id,
+          rejection_reason: rejectionReason,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Update local state
+        setP2hForms((prevForms) => prevForms.map((form) => (form.id === formId ? { ...form, status, updated_at: new Date().toISOString() } : form)));
+
+        // Update stats
+        setStats((prevStats) => {
+          const newStats = { ...prevStats };
+          const currentForm = p2hForms.find((f) => f.id === formId);
+
+          if (currentForm?.status === 'pending') {
+            newStats.pending -= 1;
+          }
+
+          if (status === 'approved') {
+            newStats.approved += 1;
+          } else if (status === 'rejected') {
+            newStats.rejected += 1;
+          }
+
+          return newStats;
+        });
+
+        alert(`Form berhasil ${status === 'approved' ? 'disetujui' : 'ditolak'}`);
+      } else {
+        alert(`Error: ${result.message || 'Gagal memperbarui status form'}`);
+      }
     } catch (error) {
-      console.error('Error:', error);
-      alert('Error updating form status');
+      console.error('Error updating form status:', error);
+      alert('Error: Gagal memperbarui status form');
+    } finally {
+      setProcessingFormId(null);
     }
   };
 
@@ -168,8 +205,21 @@ export default function PengawasDashboardPage() {
     router.push('/pengawas/login');
   };
 
+  const handleRefresh = () => {
+    if (pengawasData) {
+      loadDashboardData(pengawasData.id);
+    }
+  };
+
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Memuat data dashboard...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!pengawasData) {
@@ -183,10 +233,15 @@ export default function PengawasDashboardPage() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4">
         <div className="mb-6 flex flex-col sm:flex-row justify-between items-center sm:items-start gap-4">
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
+              Refresh Data
+            </Button>
+          </div>
           <div className="text-center">
             <h1 className="text-2xl font-bold">Dashboard Pengawas</h1>
             <p className="text-gray-600 text-sm mt-1">
@@ -204,7 +259,7 @@ export default function PengawasDashboardPage() {
               <Clock className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{pendingForms.length}</div>
+              <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
             </CardContent>
           </Card>
 
@@ -214,7 +269,7 @@ export default function PengawasDashboardPage() {
               <CheckCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{processedForms.filter((f) => f.status === 'approved').length}</div>
+              <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
             </CardContent>
           </Card>
 
@@ -224,7 +279,7 @@ export default function PengawasDashboardPage() {
               <XCircle className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">{processedForms.filter((f) => f.status === 'rejected').length}</div>
+              <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
             </CardContent>
           </Card>
         </div>
@@ -253,24 +308,33 @@ export default function PengawasDashboardPage() {
                             {new Date(form.inspection_date).toLocaleDateString('id-ID')} - Shift {form.shift}
                           </p>
                           <p className="text-sm text-gray-600">HM/KM Awal: {form.hm_km_awal}</p>
+                          <p className="text-xs text-gray-500">Dibuat: {new Date(form.created_at).toLocaleString('id-ID')}</p>
                         </div>
                         <div className="flex flex-col items-end space-y-2">
                           {getStatusBadge(form.status)}
-                          {form.has_issues && <Badge variant="destructive">Ada Masalah</Badge>}
+                          {form.has_issues && (
+                            <Badge variant="destructive">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              Ada Masalah
+                            </Badge>
+                          )}
                         </div>
                       </div>
 
                       <div className="flex flex-wrap justify-end gap-2">
-                        <Button size="sm" variant="outline" disabled>
-                          Review Detail (Coming Soon)
-                        </Button>
-                        <Button size="sm" onClick={() => updateFormStatus(form.id, 'approved')} className="bg-green-600 hover:bg-green-700">
+                        <Link href={`/pengawas/p2h-detail/${form.id}`}>
+                          <Button size="sm" variant="outline">
+                            <Eye className="h-4 w-4 mr-1" />
+                            Review Detail
+                          </Button>
+                        </Link>
+                        <Button size="sm" onClick={() => updateFormStatus(form.id, 'approved')} className="bg-green-600 hover:bg-green-700" disabled={processingFormId === form.id}>
                           <CheckCircle className="h-4 w-4 mr-1" />
-                          Setujui
+                          {processingFormId === form.id ? 'Processing...' : 'Setujui'}
                         </Button>
-                        <Button size="sm" variant="destructive" onClick={() => updateFormStatus(form.id, 'rejected')}>
+                        <Button size="sm" variant="destructive" onClick={() => updateFormStatus(form.id, 'rejected')} disabled={processingFormId === form.id}>
                           <XCircle className="h-4 w-4 mr-1" />
-                          Tolak
+                          {processingFormId === form.id ? 'Processing...' : 'Tolak'}
                         </Button>
                       </div>
                     </div>
@@ -298,26 +362,44 @@ export default function PengawasDashboardPage() {
                           {form.vehicle_type} - {form.vehicle_number}
                         </p>
                         <p className="text-sm text-gray-600">{new Date(form.inspection_date).toLocaleDateString('id-ID')}</p>
+                        <p className="text-xs text-gray-500">Diperbarui: {new Date(form.updated_at).toLocaleString('id-ID')}</p>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        {form.has_issues && <Badge variant="destructive">Ada Masalah</Badge>}
-                        {getStatusBadge(form.status)}
+                      <div className="flex flex-col items-end space-x-0 space-y-1">
+                        <div className="flex items-center space-x-2">
+                          {form.has_issues && (
+                            <Badge variant="destructive">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              Ada Masalah
+                            </Badge>
+                          )}
+                          {getStatusBadge(form.status)}
+                        </div>
+                        <Link href={`/pengawas/p2h-detail/${form.id}`}>
+                          <Button size="sm" variant="ghost" className="text-xs">
+                            <Eye className="h-3 w-3 mr-1" />
+                            Lihat Detail
+                          </Button>
+                        </Link>
                       </div>
                     </div>
                   ))}
+                  {processedForms.length > 10 && <p className="text-center text-gray-500 text-sm">Menampilkan 10 dari {processedForms.length} form</p>}
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Debug Info - hapus ini nanti */}
+        {/* Status Info */}
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="font-semibold text-blue-800 mb-2">✅ Login Berhasil!</h4>
+          <h4 className="font-semibold text-blue-800 mb-2">Status Dashboard</h4>
           <p className="text-blue-700 text-sm">
-            Dashboard berhasil dimuat untuk: {pengawasData.name} ({pengawasData.username})
+            Dashboard pengawas: {pengawasData.name} ({pengawasData.username})
           </p>
-          <p className="text-blue-600 text-xs mt-1">Mock data ditampilkan. Data akan berbeda untuk setiap pengawas setelah API terintegrasi.</p>
+          <p className="text-blue-700 text-sm">
+            Total form: {stats.total} | Pending: {stats.pending} | Disetujui: {stats.approved} | Ditolak: {stats.rejected}
+          </p>
+          <p className="text-blue-600 text-xs mt-1">Data diambil langsung dari database. Refresh halaman untuk data terbaru.</p>
         </div>
       </div>
     </div>
