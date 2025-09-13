@@ -1,29 +1,23 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 
-// Mock data - same as above
-const vehicles = [
-  { id: 1, vehicle_number: "LV-001", vehicle_type: "LV", status: "available" },
-  { id: 2, vehicle_number: "LV-002", vehicle_type: "LV", status: "available" },
-  { id: 3, vehicle_number: "AMB-001", vehicle_type: "Ambulance", status: "available" },
-  { id: 4, vehicle_number: "AMB-002", vehicle_type: "Ambulance", status: "maintenance" },
-  { id: 5, vehicle_number: "TRK-001", vehicle_type: "Truk", status: "available" },
-  { id: 6, vehicle_number: "TRK-002", vehicle_type: "Truk", status: "available" },
-]
+const err = (s: number, m: string) => NextResponse.json({ error: m }, { status: s });
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
-    const { status } = await request.json()
-    const vehicleId = Number.parseInt(params.id)
+    const id = params.id;
+    const body = await req.json();
+    const status = (body?.status ?? '').trim();
 
-    const vehicleIndex = vehicles.findIndex((v) => v.id === vehicleId)
-    if (vehicleIndex === -1) {
-      return NextResponse.json({ error: "Vehicle not found" }, { status: 404 })
-    }
+    if (!id || !status) return err(400, 'ID dan status diperlukan');
 
-    vehicles[vehicleIndex].status = status
+    const { data, error } = await supabase.from('vehicles').update({ status }).eq('id', id).select('id, vehicle_number, status').single();
 
-    return NextResponse.json(vehicles[vehicleIndex])
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update vehicle" }, { status: 500 })
+    if (error) return err(400, error.message);
+
+    return NextResponse.json(data);
+  } catch (e: any) {
+    console.error('[PATCH vehicle]', e);
+    return err(500, e?.message || 'Gagal update kendaraan');
   }
 }
