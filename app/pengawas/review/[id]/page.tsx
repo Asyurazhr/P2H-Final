@@ -1,139 +1,141 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, CheckCircle, XCircle, Clock } from "lucide-react"
-import Link from "next/link"
+import React, { use, useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, CheckCircle, XCircle, Clock } from 'lucide-react';
+import Link from 'next/link';
 
 interface P2HForm {
-  id: number
-  driver_name: string
-  driver_nik: string
-  vehicle_number: string
-  vehicle_type: string
-  inspection_date: string
-  shift: string
-  hm_km_awal: number
-  status: string
-  pengawas_name: string
+  id: string;
+  driver_name: string;
+  driver_nik: string;
+  vehicle_number: string;
+  vehicle_type: string;
+  inspection_date: string;
+  shift: string;
+  hm_km_awal: number;
+  status: string;
+  pengawas_name: string;
 }
 
 interface InspectionResult {
-  id: number
+  id: number;
   inspection_item: {
-    category: string
-    description: string
-  }
-  condition: string
-  notes: string
+    category: string;
+    description: string;
+  };
+  condition: string;
+  notes: string;
 }
 
-export default function ReviewDetailPage({ params }: { params: { id: string } }) {
-  const [form, setForm] = useState<P2HForm | null>(null)
-  const [inspections, setInspections] = useState<InspectionResult[]>([])
-  const [loading, setLoading] = useState(true)
+export default function ReviewDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  // ✅ ambil id dengan React.use()
+  const { id } = use(params);
+
+  const [form, setForm] = useState<P2HForm | null>(null);
+  const [inspections, setInspections] = useState<InspectionResult[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchFormDetail()
-  }, [])
+    fetchFormDetail();
+  }, [id]);
 
   const fetchFormDetail = async () => {
     try {
-      const response = await fetch(`/api/pengawas/p2h-detail/${params.id}`)
+      const response = await fetch(`/api/pengawas/p2h-detail/${id}`);
       if (response.ok) {
-        const detail = await response.json()
-        setForm(detail)
-        setInspections(detail.inspections)
+        const detail = await response.json();
+        setForm(detail);
+        setInspections(detail.inspections);
       } else {
-        // Fallback to mock data if API fails
-        const mockForm = {
-          id: Number.parseInt(params.id),
-          driver_name: "Driver 1",
-          driver_nik: "DRV001",
-          vehicle_number: "LV-001",
-          vehicle_type: "LV",
-          inspection_date: "2024-01-15",
-          shift: "siang",
+        // Fallback mock data kalau API gagal
+        const mockForm: P2HForm = {
+          id,
+          driver_name: 'Driver 1',
+          driver_nik: 'DRV001',
+          vehicle_number: 'LV-001',
+          vehicle_type: 'LV',
+          inspection_date: '2024-01-15',
+          shift: 'siang',
           hm_km_awal: 12500,
-          pengawas_name: "Pengawas 1",
-          status: "pending",
-        }
+          pengawas_name: 'Pengawas 1',
+          status: 'pending',
+        };
 
-        const mockInspections = [
-          // Use the complete inspection data from the API endpoint
+        const mockInspections: InspectionResult[] = [
           {
             id: 1,
             inspection_item: {
-              category: "Pemeriksaan Keling Unit / Diluar Kabin",
-              description: "Pemeriksaan keadaan ban & bolt roda",
+              category: 'Pemeriksaan Keling Unit / Diluar Kabin',
+              description: 'Pemeriksaan keadaan ban & bolt roda',
             },
-            condition: "baik",
-            notes: "",
+            condition: 'baik',
+            notes: '',
           },
           {
             id: 12,
             inspection_item: {
-              category: "Pemeriksaan Keling Unit / Diluar Kabin",
-              description: "Pemeriksaan kondisi rem",
+              category: 'Pemeriksaan Keling Unit / Diluar Kabin',
+              description: 'Pemeriksaan kondisi rem',
             },
-            condition: "rusak",
-            notes: "Rem depan perlu diganti, sudah aus",
+            condition: 'rusak',
+            notes: 'Rem depan perlu diganti, sudah aus',
           },
           {
             id: 31,
             inspection_item: {
-              category: "Pemeriksaan di dalam Kabin & engine hidup",
-              description: "Test fungsi air conditioner",
+              category: 'Pemeriksaan di dalam Kabin & engine hidup',
+              description: 'Test fungsi air conditioner',
             },
-            condition: "rusak",
-            notes: "AC tidak dingin, perlu service",
+            condition: 'rusak',
+            notes: 'AC tidak dingin, perlu service',
           },
-        ]
+        ];
 
-        setForm(mockForm)
-        setInspections(mockInspections)
+        setForm(mockForm);
+        setInspections(mockInspections);
       }
-      setLoading(false)
+      setLoading(false);
     } catch (error) {
-      console.error("Error fetching form detail:", error)
-      setLoading(false)
+      console.error('Error fetching form detail:', error);
+      setLoading(false);
     }
-  }
+  };
 
   const updateFormStatus = async (status: string) => {
     try {
-      const response = await fetch(`/api/pengawas/p2h-forms/${params.id}`, {
-        method: "PATCH",
+      const response = await fetch(`/api/pengawas/p2h-forms/${id}`, {
+        method: 'PATCH',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ status }),
-      })
+      });
 
       if (response.ok) {
-        alert(`Form berhasil ${status === "approved" ? "disetujui" : "ditolak"}!`)
-        window.history.back()
+        alert(`Form berhasil ${status === 'approved' ? 'disetujui' : 'ditolak'}!`);
+        window.history.back();
       } else {
-        alert("Error updating form status")
+        alert('Error updating form status');
       }
     } catch (error) {
-      console.error("Error:", error)
-      alert("Error updating form status")
+      console.error('Error:', error);
+      alert('Error updating form status');
     }
-  }
+  };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
   if (!form) {
-    return <div className="min-h-screen flex items-center justify-center">Form not found</div>
+    return <div className="min-h-screen flex items-center justify-center">Form not found</div>;
   }
 
-  const categories = [...new Set(inspections.map((item) => item.inspection_item.category))]
-  const issueItems = inspections.filter((item) => item.condition === "rusak")
+  const categories = [...new Set(inspections.map((item) => item.inspection_item.category))];
+  const issueItems = inspections.filter((item) => item.condition === 'rusak');
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -176,11 +178,11 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
                   <div>
                     <label className="text-sm font-medium text-gray-600">Hari/Tanggal</label>
                     <p className="text-base">
-                      {new Date(form.inspection_date).toLocaleDateString("id-ID", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
+                      {new Date(form.inspection_date).toLocaleDateString('id-ID', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
                       })}
                     </p>
                   </div>
@@ -204,19 +206,19 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
                   <div>
                     <label className="text-sm font-medium text-gray-600">Status Form</label>
                     <div className="mt-1">
-                      {form.status === "pending" && (
+                      {form.status === 'pending' && (
                         <Badge className="bg-yellow-100 text-yellow-800">
                           <Clock className="h-3 w-3 mr-1" />
                           Menunggu Persetujuan
                         </Badge>
                       )}
-                      {form.status === "approved" && (
+                      {form.status === 'approved' && (
                         <Badge className="bg-green-100 text-green-800">
                           <CheckCircle className="h-3 w-3 mr-1" />
                           Disetujui
                         </Badge>
                       )}
-                      {form.status === "rejected" && (
+                      {form.status === 'rejected' && (
                         <Badge className="bg-red-100 text-red-800">
                           <XCircle className="h-3 w-3 mr-1" />
                           Ditolak
@@ -227,7 +229,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
                   <div className="text-right">
                     <label className="text-sm font-medium text-gray-600">Waktu Submit</label>
                     <p className="text-sm text-gray-500">
-                      {new Date().toLocaleDateString("id-ID")} {new Date().toLocaleTimeString("id-ID")}
+                      {new Date().toLocaleDateString('id-ID')} {new Date().toLocaleTimeString('id-ID')}
                     </p>
                   </div>
                 </div>
@@ -286,17 +288,9 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
                             <tr key={item.id}>
                               <td className="border border-gray-300 px-4 py-2">{item.inspection_item.description}</td>
                               <td className="border border-gray-300 px-4 py-2 text-center">
-                                <Badge
-                                  className={
-                                    item.condition === "baik"
-                                      ? "bg-green-100 text-green-800"
-                                      : "bg-red-100 text-red-800"
-                                  }
-                                >
-                                  {item.condition === "baik" ? "Baik/Normal" : "Rusak/Tidak Normal"}
-                                </Badge>
+                                <Badge className={item.condition === 'baik' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>{item.condition === 'baik' ? 'Baik/Normal' : 'Rusak/Tidak Normal'}</Badge>
                               </td>
-                              <td className="border border-gray-300 px-4 py-2">{item.notes || "-"}</td>
+                              <td className="border border-gray-300 px-4 py-2">{item.notes || '-'}</td>
                             </tr>
                           ))}
                       </tbody>
@@ -307,17 +301,13 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
             </CardContent>
           </Card>
 
-          {form.status === "pending" && (
+          {form.status === 'pending' && (
             <div className="flex justify-center space-x-4">
-              <Button
-                onClick={() => updateFormStatus("approved")}
-                className="bg-green-600 hover:bg-green-700"
-                size="lg"
-              >
+              <Button onClick={() => updateFormStatus('approved')} className="bg-green-600 hover:bg-green-700" size="lg">
                 <CheckCircle className="h-5 w-5 mr-2" />
                 Setujui Form
               </Button>
-              <Button onClick={() => updateFormStatus("rejected")} variant="destructive" size="lg">
+              <Button onClick={() => updateFormStatus('rejected')} variant="destructive" size="lg">
                 <XCircle className="h-5 w-5 mr-2" />
                 Tolak Form
               </Button>
@@ -326,5 +316,5 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
         </div>
       </div>
     </div>
-  )
+  );
 }

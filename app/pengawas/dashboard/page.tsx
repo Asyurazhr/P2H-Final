@@ -124,7 +124,7 @@ export default function PengawasDashboardPage() {
     try {
       setProcessingFormId(formId);
 
-      const response = await fetch(`/api/pengawas/forms/${formId}/status`, {
+      const response = await fetch(`/api/pengawas/p2h-forms/${formId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -322,12 +322,13 @@ export default function PengawasDashboardPage() {
                       </div>
 
                       <div className="flex flex-wrap justify-end gap-2">
-                        <Link href={`/pengawas/p2h-detail/${form.id}`}>
+                        <Link href={`/pengawas/review/${form.id}`}>
                           <Button size="sm" variant="outline">
                             <Eye className="h-4 w-4 mr-1" />
                             Review Detail
                           </Button>
                         </Link>
+
                         <Button size="sm" onClick={() => updateFormStatus(form.id, 'approved')} className="bg-green-600 hover:bg-green-700" disabled={processingFormId === form.id}>
                           <CheckCircle className="h-4 w-4 mr-1" />
                           {processingFormId === form.id ? 'Processing...' : 'Setujui'}
@@ -374,7 +375,7 @@ export default function PengawasDashboardPage() {
                           )}
                           {getStatusBadge(form.status)}
                         </div>
-                        <Link href={`/pengawas/p2h-detail/${form.id}`}>
+                        <Link href={`/pengawas/review/${form.id}`}>
                           <Button size="sm" variant="ghost" className="text-xs">
                             <Eye className="h-3 w-3 mr-1" />
                             Lihat Detail
